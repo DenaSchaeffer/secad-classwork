@@ -1,6 +1,17 @@
 # README #
 
-This README would normally document whatever steps are necessary to get your application up and running.
+University of Dayton
+
+Department of Computer Science
+
+CPS475: Secure Application Development - Spring 2021
+
+Name: Dena Schaeffer
+
+Email: backd1@udayton.edu
+
+UDID: 101483690
+
 
 ### What is this repository for? ###
 
