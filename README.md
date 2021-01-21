@@ -1,14 +1,16 @@
-# README #
+# SecAD - Secure Application Development
 
-University of Dayton
+### Instructor: Dr. Phu Phung
 
-Department of Computer Science
+### Department of Computer Science
 
-CPS475: Secure Application Development - Spring 2021
+### University of Dayton
 
-Name: Dena Schaeffer
+## Repository Information
 
-Email: backd1@udayton.edu
+This is a private repository for Dena Schaeffer to store code from the course. 
+
+Email: <backd1@udayton.edu>
 
 UDID: 101483690
 
