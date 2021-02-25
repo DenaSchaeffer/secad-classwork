@@ -8,6 +8,7 @@ import (
 )
 
 const BUFFERSIZE int = 1024
+var allClients_conn = make(map[net.Conn]string)
 
 func main() {
 	if len(os.Args) != 2 {
@@ -33,6 +34,9 @@ func main() {
 }
 func client_goroutine(client_conn net.Conn) {
 	fmt.Printf("A new client '%s' connected!\n", client_conn.RemoteAddr().String())
+		allClients_conn[client_conn] = client_conn.RemoteAddr().String()
+		fmt.Printf("# of connected clients: %d\n", len(allClients_conn))
+
 		var buffer [BUFFERSIZE]byte
 		for {
 			byte_received, read_err := client_conn.Read(buffer[0:])
