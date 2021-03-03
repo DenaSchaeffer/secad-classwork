@@ -11,6 +11,7 @@ const BUFFERSIZE int = 1024
 var allClients_conn = make(map[net.Conn]string)
 
 func main() {
+	newclient := make(chan net.Conn)
 	if len(os.Args) != 2 {
 		fmt.Printf("Usage: %s <port>\n", os.Args[0])
 		os.Exit(0)
@@ -27,9 +28,18 @@ func main() {
 	}
 	fmt.Println("EchoServer in GoLang developed by Phu Phung, SecAD, revised by Dena Schaeffer")
 	fmt.Printf("EchoServer is listening on port '%s' ...\n", port)
-	for {
-		client_conn, _ := server.Accept()
-		go client_goroutine(client_conn)
+	go func(){
+		for {
+			client_conn, _ := server.Accept()
+			newclient <- client_conn
+		}
+	}()
+	for{
+		select{
+			case client_conn := <- newclient:
+				allClients_conn[client_conn]=client_conn.RemoteAddr().String()
+				go client_goroutine(client_conn)
+		}
 	}
 }
 func client_goroutine(client_conn net.Conn) {
