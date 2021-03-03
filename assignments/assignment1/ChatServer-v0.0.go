@@ -64,6 +64,15 @@ func client_goroutine(client_conn net.Conn) {
 				lostclient <- client_conn
 				return
 			}
+			clientdata := buffer[0:byte_received]
+			fmt.Printf("Received data: %s, len=%d\n", clientdata, len(clientdata))
+			//Compare the data:
+			if string(clientdata) == "login" {
+				fmt.Println("DEBUG>login data")
+			} else {
+				fmt.Println("DEBUG>non-login data")
+
+			}
 			go sendtoAll(buffer[0:byte_received])
 		}
 	}() //execute go routine

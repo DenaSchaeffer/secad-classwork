@@ -39,7 +39,7 @@ const keyboard = require('readline').createInterface({
 	output: process.stdout
 });
 keyboard.on('line', (input) => {
-	console.log('You typed: ${input}');
+	console.log(`You typed: ${input}`);
 	if(input === ".exit"){
 		client.destroy();
 		console.log("disconnected!");
