@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en"
+<head>
+    <meta charset="utf-8">
+    <title>Homepage of Dena Schaeffer</title>
+</head>
+<body>
+<h1>Personal homepage on BitBucket</h1>
+<img src="images/backd1.jpg" alt="Headshot">
+<h2>Dena Schaeffer, University of Dayton<h2>
+<h3>Year: Senior <br>Majors: Computer Science and Biology</h3>
+<p>Just a demo page for BitBucket</p>
+<div id="email" onclick="showhide()">show my email</div>
+</body>
+<script>
+document.write("Content generated from document.write");
+document.write("<script>alert('script code is generated within script code');</"+"script>");
+
+if (document.cookie.indexOf("username") <0){
+	alert('no username in cookie, set a new one');
+	document.cookie = "username=denaschaeffer";
+} else
+	alert("my cookie: " +document.cookie);
+
+function startTime() {
+	document.getElementById('clock').innerHTML = new Date();
+	setTimeout(startTime, 500);
+}
+
+//for showing and hiding email
+var shown = false;
+function showhide(){
+	if (shown){
+		document.getElementById('email').innerHTML = "show my email";
+		shown = false;
+	}else{
+		var myemail = "<a href='mailto:backd1"+ "@" + "udayton.edu'>backd1" +
+			"@" + "udayton.edu</a>";
+		//alert("myemail="+myemail);
+		document.getElementById('email').innerHTML= myemail;
+		shown = true;
+
+	}
+}
+</script>
+
+<script
+	src="https://phu-udayton.bitbucket.io/remote.js">
+</script>
+
+<body onload="startTime()">
+<br>
+Current time: <div id="clock"></div>
+
