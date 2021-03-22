@@ -78,3 +78,11 @@ func sendtoAll(data []byte){
 	}
 		fmt.Printf("Received data: %sSent to all connected clients!\n", data)
 }
+func sendto(client_conn net.Conn, data []byte){
+		_, write_err := client_conn.Write(data)
+		if write_err != nil {
+			fmt.Println("Error in sending...")
+			return
+		}
+		fmt.Printf("Received data: %sSent to connected client!\n", data)
+}
