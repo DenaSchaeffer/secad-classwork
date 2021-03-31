@@ -5,15 +5,18 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 	"encoding/json"
 )
 
 const BUFFERSIZE int = 1024
-const TESTUSER1= "username" // {"username":"TESTUSER1","password":"TESTUSERPASS1"}
-const TESTUSERPASS1 = "password" 
+// const TESTUSER1= "username" // {"username":"TESTUSER1","password":"TESTUSERPASS1"}
+// const TESTUSERPASS1 = "password" 
 
-var allClients_conns = make(map[net.Conn]string)
-var lostclient = make(chan net.Conn)
+var AuthenticatedClient_conns = make(map[net.Conn]string)
+var lostclient = make(chan net.Conn) //step 1
+var newclient = make(chan net.Conn)
+
 
 func main() {
 	if len(os.Args) != 2 {
@@ -32,40 +35,39 @@ func main() {
 	}
 	fmt.Println("EchoServer in GoLang developed by Phu Phung, SecAD, revised by Dena Schaeffer")
 	fmt.Printf("EchoServer is listening on port '%s' ...\n", port)
-	
-	newclient := make(chan net.Conn)
-	// ncusername := make(chan string)
+
 	go func () {
 		for {
 			client_conn, _ := server.Accept()
-			newclient <- client_conn
+			//newclient <- client_conn
+			go login(client_conn)
 		}
 	}()
-
 	for{
         select{
             case client_conn := <- newclient:
-                allClients_conns[client_conn]=client_conn.RemoteAddr().String()
-                authenticated, _ := login(client_conn)
-			
-				if (authenticated){
-	                go client_goroutine(client_conn)
-				}
-			case client_conn := <- lostclient:
-                delete (allClients_conns, client_conn)
+            	go authenticating(client_conn)
+			case client_conn := <- lostclient: //step 3
+                delete (AuthenticatedClient_conns, client_conn)
                 byemessage := fmt.Sprintf("A client '%s' disconnected!\n#of connected clients: %d\n",
-				client_conn.RemoteAddr().String(), len(allClients_conns))
-				                fmt.Println(byemessage)
-				                go sendtoAll([]byte (byemessage))
+								client_conn.RemoteAddr().String(), len(AuthenticatedClient_conns))
+                fmt.Println(byemessage)
+				go sendtoAll([]byte (byemessage))
 		}
 	}
 }
 
-func client_goroutine(client_conn net.Conn) {
+func authenticating(client_conn net.Conn) {
+    AuthenticatedClient_conns[client_conn]=client_conn.RemoteAddr().String()
+	sendto(client_conn, []byte("You are authenticated! Welcome to the chat system!\n"))
 	welcomemessage := fmt.Sprintf("A new client '%s' connected!\n#of connected clients: %d\n",
-					 client_conn.RemoteAddr().String(), len(allClients_conns))
+				 client_conn.RemoteAddr().String(), len(AuthenticatedClient_conns))
 	fmt.Println(welcomemessage)
 	go sendtoAll([]byte (welcomemessage))
+	go client_goroutine(client_conn)
+}
+
+func client_goroutine(client_conn net.Conn) {
 	var buffer [BUFFERSIZE]byte
 
 	go func(){	
@@ -78,12 +80,24 @@ func client_goroutine(client_conn net.Conn) {
 			}
 			clientdata := buffer[0:byte_received]
 			fmt.Printf("Received data: %s, len=%d\n", clientdata, len(clientdata))
-			go sendtoAll([]byte("Message from " + allClients_conns[client_conn] + ":" + string(buffer[0:byte_received])))
+			//compare the data
+			
+			if len(clientdata) >= 5 && strings.Compare(string(clientdata[0:5]), "login") == 0 {
+				fmt.Println("DEBUG> strings.Compare: login data")
+				sendto(client_conn, []byte("login data\n"))
+			} else {
+				fmt.Println("Debug>strings.Compare: non-login data\n")
+				sendto(client_conn, []byte("non-login data\n"))
+			}
+			go sendtoAll(buffer[0:byte_received])
+			//go sendtoAll([]byte("Message from " + allClient_conns[client_conn] + ":" + string(buffer[0:byte_received])))
+			
 			}		
 	}() //execute go routine
 }
+
 func sendtoAll(data []byte){
-	for client_conn, _:= range allClients_conns{
+	for client_conn, _:= range AuthenticatedClient_conns{
 		_, write_err := client_conn.Write(data)
 		if write_err != nil {
 			fmt.Println("Error in sending...")
@@ -102,28 +116,34 @@ func sendto(client_conn net.Conn, data []byte){
 		fmt.Printf("Received data: %sSent to connected client!\n", data)
 }
 
-func login(client_conn net.Conn) (bool, string) {
+func login(client_conn net.Conn) {
 	var buffer [BUFFERSIZE]byte
-	for {
-		byte_received, read_err := client_conn.Read(buffer[0:])
+	go func(){	
+		for {
+			byte_received, read_err := client_conn.Read(buffer[0:])
 			if read_err != nil {
 				fmt.Println("Error in receiving...")
 				lostclient <- client_conn
-				return false, "Error"
+				return
 			}
-		clientdata := buffer[0:byte_received] // rn the clientdata shoudl be the json string
-		authenticated, _, message  := checkLogin(clientdata)
-
-		loginmessage := fmt.Sprintf("%s\n", message)
-		go sendto(client_conn, []byte (loginmessage))
-
-		if authenticated{
-			return authenticated, message
-		}
-	}
+			clientdata := buffer[0:byte_received]
+			fmt.Printf("Received data: %s, len=%d\n", clientdata, len(clientdata))
+			//compare the data
+			checklogin, username, message := checklogin(clientdata)
+			// if len(clientdata) >= 5 && strings.Compare(string(clientdata[0:5]), "login") == 0 {
+			if checklogin{
+				fmt.Println("DEBUG> Valid JSON login format and login information. Username = " + username + ". Message: " + message)
+				newclient <- client_conn
+			} else {
+				fmt.Println("Debug>Invalid JSON login format\n")
+				sendto(client_conn, []byte(message))
+				login(client_conn) //call the function again to let them try again
+			}
+		}		
+	}() 
 }
 
-func checkLogin(data []byte) (bool, string, string){
+func checklogin(data []byte) (bool, string, string){
 	//expecting format of ("username":"...","password":"...")
 	type Account struct{
 		Username string
@@ -147,7 +167,7 @@ func checkLogin(data []byte) (bool, string, string){
 
 func checkAccount(username string, password string) (bool){
 	
-	if username == "TESTUSER1" && password == "TESTUSERPASS1" {
+	if username == "backd1" && password == "test" {
 		fmt.Println("Login access granted!")
 		return true
 	}
