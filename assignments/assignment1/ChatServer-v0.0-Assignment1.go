@@ -16,6 +16,7 @@ const BUFFERSIZE int = 1024
 var AuthenticatedClient_conns = make(map[net.Conn]string)
 var lostclient = make(chan net.Conn) //step 1
 var newclient = make(chan net.Conn)
+var userslist = make(map[string]bool)
 
 
 func main() {
@@ -56,6 +57,10 @@ func main() {
 		}
 	}
 }
+
+// func privateMessage(client_conn net.Conn, userMessage userMessage){
+// 	//add stuff here=
+// }
 
 func authenticating(client_conn net.Conn) {
     AuthenticatedClient_conns[client_conn]=client_conn.RemoteAddr().String()
@@ -153,7 +158,7 @@ func checklogin(data []byte) (bool, string, string){
 	err := json.Unmarshal(data, &account)
 	if err!=nil ||account.Username =="" || account.Password == "" {
 		fmt.Printf("JSON parsing error: %s\n", err)
-		return false, "", '[BAD LOGIN] Expected: {"Username":"...","Password":"..."}'
+		return false, "", "[BAD LOGIN] Expected: {'username':'...','password':'...'}"
 	}
 	fmt.Println("DEBUG>Got account=%s\n", account)
 	fmt.Println("DEBUG>Got username=%s\n, password=%s\n", account.Username, account.Password)
