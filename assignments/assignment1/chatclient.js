@@ -77,8 +77,7 @@ function startchat(){
 	});
 
 	console.log("Welcome to the Chat System. Type anything to send to public chat.\n");
-	console.log("Type '[To:Receiver] Message' to send to a specific user.");
-	console.log("Type .userlist to request latest online users.\nType .exit to logout and close the connection");
+	console.log("Type .help to view all options");
 
 	keyboard.on('line', (input) => {
 		if(input === ".exit") {
@@ -89,6 +88,11 @@ function startchat(){
 				process.exit();}, 1);
 		}else if(input === ".userlist"){
 			client.write('{"Command":"Userlist"}');
+		}else if(input === ".help"){
+			console.log("Welcome to the Chat System. Below are all options available to authenticated users.");
+			console.log("Type anything to send to public chat.\n");
+			console.log("Type '[To:Receiver] Message' to send to a specific user.");
+			console.log("Type .userlist to request latest online users.\nType .exit to logout and close the connection");
 		}else if(input.includes("[To:")){
 			endname = input.search("]");
 			receiver = input.substring(4,endname);
