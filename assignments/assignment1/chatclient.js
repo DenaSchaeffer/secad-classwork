@@ -26,6 +26,7 @@ function connected() {
 
 var readlineSync = require('readline-sync');
 
+
 var username;
 var password;
 function loginsync() {
@@ -52,7 +53,7 @@ client.on("data", data => {
 		if(username && data.includes("user '"+username+"' logged")) {
 			console.log("You have logged in successfully witth username " + username);
 			authenticated = true;
-			startchat();
+			chat();
 		}else{
 			console.log("Authenticated failed. Please try again.");
 			loginsync();
@@ -70,7 +71,7 @@ client.on("close", function(data){
 	process.exit(3);
 });
 
-function startchat(){
+function chat(){
 	var keyboard = rl.createInterface({
 		input: process.stdin,
 		output: process.stdout
@@ -81,13 +82,13 @@ function startchat(){
 
 	keyboard.on('line', (input) => {
 		if(input === ".exit") {
-			client.write('{"Command":"Quit"}');
+			client.write('{"Command":"exit"}');
 			setTimeout(() =>{
 				client.destroy();
 				console.log("Disconnected!");
 				process.exit();}, 1);
 		}else if(input === ".userlist"){
-			client.write('{"Command":"Userlist"}');
+			client.write('{"Command":"userlist"}');
 		}else if(input === ".help"){
 			console.log("Welcome to the Chat System. Below are all options available to authenticated users.");
 			console.log("Type anything to send to public chat.\n");
@@ -109,7 +110,7 @@ function startchat(){
 
 function inputValidated(input){
 	//checks to see if the username is longer than five characters
-	if (input && input.length>5){ 
+	if (input && input.length>5 && input.length<1000){ //prevents buffer overflow for input
 		return true;
 	}
 }

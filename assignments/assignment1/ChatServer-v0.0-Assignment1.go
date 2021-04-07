@@ -5,20 +5,8 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strings"
 	"encoding/json"
 )
-
-const BUFFERSIZE int = 1024
-// const TESTUSER1= "username" // {"username":"TESTUSER1","password":"TESTUSERPASS1"}
-// const TESTUSERPASS1 = "password" 
-
-var AuthenticatedClient_conns = make(map[net.Conn]interface{})
-var lostclient = make(chan net.Conn) //step 1
-var newclient = make(chan net.Conn)
-var userslist = make(map[string]bool)
-var message = make(chan string)
-var currentLoggedUser = User
 
 type User struct {
 	Username string
@@ -34,6 +22,19 @@ type ChatMessage struct {
 	Message string
 	Receiver string //for pm
 }
+
+const BUFFERSIZE int = 1024
+// const TESTUSER1= "username" // {"username":"TESTUSER1","password":"TESTUSERPASS1"}
+// const TESTUSERPASS1 = "password" 
+
+var AuthenticatedClient_conns = make(map[net.Conn]interface{})
+var lostclient = make(chan net.Conn) //step 1
+var newclient = make(chan net.Conn)
+var userslist = make(map[string]bool)
+var message = make(chan string)
+var currentLoggedUser User
+
+
 
 func main() {
 	if len(os.Args) != 2 {
@@ -56,23 +57,18 @@ func main() {
 	go func () {
 		for {
 			client_conn, _ := server.Accept()
-			//newclient <- client_conn
 			go login(client_conn)
 		}
 	}()
 	for{
         select{
             case client_conn := <- newclient:
-            	go authenticating(client_conn)
+            	authenticating(client_conn)
 			case client_conn := <- lostclient: //step 3
                 onDisconnect(client_conn)
 		}
 	}
 }
-
-// func privateMessage(client_conn net.Conn, userMessage userMessage){
-// 	//add stuff here=
-// }
 
 func authenticating(client_conn net.Conn) {
     AuthenticatedClient_conns[client_conn]=currentLoggedUser
@@ -84,20 +80,18 @@ func authenticating(client_conn net.Conn) {
     	} else {
     		userslist[user.Username] = true
     	}
+    	welcomemessage = fmt.Sprintf("A new user: " + user.Username + " has connected!\nList of users: " + string(getUserlist()) + "\nNumber of connected users: %d\n", len(AuthenticatedClient_conns))
+		go sendtoAll([]byte (welcomemessage))
+		go client_goroutine(client_conn)
     }
-	// sendto(client_conn, []byte("You are authenticated! Welcome to the chat system!\n"))
-	welcomemessage := fmt.Sprintf("A new user: " + user.Username + " has connected!\nList of users: " + string(getUserlist()) + "\nNumber of connected users: %d\n", len(AuthenticatedClient_conns))
-	// fmt.Println(welcomemessage)
-	go sendtoAll([]byte (welcomemessage))
-	go client_goroutine(client_conn)
+
 }
 
 func onDisconnect(client_conn net.Conn) {
-	if AuthenticatedClient_conns[client_conn] = currentLoggedUser
 	if AuthenticatedClient_conns[client_conn] != nil {
 		user := AuthenticatedClient_conns[client_conn].(User)
 		delete(AuthenticatedClient_conns, client_conn)
-		removeUSer(user.Username)
+		delete(userslist, user.Username)
 		byemessage := fmt.Sprintf("User '"+user.Username+"' has left. Online users: "+string(getUserlist())+" (from %d connections)\n", len(AuthenticatedClient_conns))
 		go sendtoAll([]byte(byemessage))
 		client_conn.Close()
@@ -118,36 +112,26 @@ func client_goroutine(client_conn net.Conn) {
 			clientdata := buffer[0:byte_received]
 			fmt.Printf("Received data: %s from '%s'\n", clientdata, client_conn.RemoteAddr().String())
 			//determine if the input is an action or a private/public message to be sent to a user
-			organizeMessage(client_conn, data)
+			organizeMessage(client_conn, clientdata)
 			}		
 	}() //execute go routine
 }
 
 func organizeMessage(client_conn net.Conn, data []byte) {
 	var Action Action
-	action_err := json.Unmarshal(data, &command)
+	action_err := json.Unmarshal(data, &Action)
 	if action_err !=nil || Action.Action == "" {
 		var ChatMessage ChatMessage
 		chat_err := json.Unmarshal(data, &ChatMessage)
 		if chat_err != nil || ChatMessage.ChatType == "" {
 			fmt.Printf("Unknown data type=%s\n", data)
-			sendto(client_conn, []byte("Unknown command."))
-			options := fmt.Sprintf('Proper format: {"Action":"Quit"} | {"Command":"Userlist"} | {"ChatType":"private","Receiver":"...","Message":"..."}')
+			sendto(client_conn, []byte("Unknown action."))
+			options := fmt.Sprintf("Must use proper format.")
 			sendto(client_conn, []byte(options))
 			return
 		}
 		if ChatMessage.ChatType == "private" {
-			fmt.Printf("Privaet chat to: %s. Message: %s\n", ChatMessage.Receiver, ChatMessage.Message)
-			if AuthenticatedClient_conns[client_conn] != nil {
-				user := AuthenticatedClient_conns[client_conn].(User)
-				message := fmt.Sprintf("Private message from '" + user.Username+"':%s", ChatMessage.Message)
-				for receiver, _ := range AuthenticatedClient_conns {
-					if AuthenticatedClient_conns[receiver] != nil {
-						Receiver := AuthenticatedClient_conns[receiver.client_conn].(User)
-						sendto(receiver, []byte(message))
-					}
-				}
-			}
+			privateMessageChat(client_conn, ChatMessage)
 		}
 		if ChatMessage.ChatType == "public" {
 			fmt.Printf("Public chat. Message: %s\n", ChatMessage.Message)
@@ -156,11 +140,53 @@ func organizeMessage(client_conn net.Conn, data []byte) {
 				message := fmt.Sprintf("Public message from '"+user.Username+"':%s", ChatMessage.Message)
 				sendtoAll([]byte(message))
 			}
-		}
-		else {
-			//TODO: WORK ON HANDLING ACTIONS
+		} else {
+			//HANDLING ACTIONS
+			fmt.Printf("Action: ", Action.Action)
+			//note: .help is handled client side
+			switch Action.Action {
+			case "userlist":
+				userlist := getUserlist()
+				sendto(client_conn, userlist)
+			case "exit":
+				//client leaves the application
+				lostclient <- client_conn
+			default:
+				fmt.Printf("DEBUG>>Unknown action.\n")
+				//send error to user
+				sendto(client_conn, []byte("Unknown command."))
+				options := fmt.Sprintf("Must use proper format.")
+				sendto(client_conn, []byte(options))
+			}
 		}
 	}
+}
+
+func privateMessageChat(client_conn net.Conn, ChatMessage ChatMessage) {
+	fmt.Printf("Private chat to: %s. Message: %s\n", ChatMessage.Receiver, ChatMessage.Message)
+	if AuthenticatedClient_conns[client_conn] != nil {
+		user := AuthenticatedClient_conns[client_conn].(User)
+		message := fmt.Sprintf("Private message from '" + user.Username+"':%s", ChatMessage.Message)
+		for receiver_client, _ := range AuthenticatedClient_conns {
+			if AuthenticatedClient_conns[receiver_client] != nil {
+				receiveruser := AuthenticatedClient_conns[receiver_client].(User)
+				if receiveruser.Username == ChatMessage.Receiver {
+					sendto(receiver_client, []byte(message))
+				}
+			}
+		}
+	}
+}
+
+func getUserlist() []byte{
+	userlist := []string{}
+	for username, _ := range userslist {
+		fmt.Printf("Debug>> getUserlist(), user.Username = %s\n", username)
+		userlist = append(userlist, username)
+	}
+	fmt.Printf("DEBUG>> getuserlist(): %s", userlist)
+	userlistJSON, _ := json.Marshal(userlist)
+	return userlistJSON	
 }
 
 func sendtoAll(data []byte){
@@ -185,31 +211,26 @@ func sendto(client_conn net.Conn, data []byte){
 
 func login(client_conn net.Conn) {
 	var buffer [BUFFERSIZE]byte
-	go func(){	
-		for {
-			byte_received, read_err := client_conn.Read(buffer[0:])
-			if read_err != nil {
-				fmt.Println("Error in receiving...")
-				lostclient <- client_conn
-				return
-			}
-			clientdata := buffer[0:byte_received]
-			fmt.Printf("Received data: %s, len=%d\n", clientdata, len(clientdata))
-			//compare the data
-			checklogin, username, message := checklogin(clientdata)
-			// if len(clientdata) >= 5 && strings.Compare(string(clientdata[0:5]), "login") == 0 {
-			if checklogin{
-				fmt.Println("DEBUG> Valid JSON login format and login information. Username = " + username + ". Message: " + message)
-				currentLoggedUser = User{Username: username, Login: true}
-				newclient <- client_conn
-				return
-			} else {
-				fmt.Println("Debug>Invalid JSON login format\n")
-				sendto(client_conn, []byte(message))
-				login(client_conn) //call the function again to let them try again
-			}
-		}		
-	}() 
+	byte_received, read_err := client_conn.Read(buffer[0:])
+	if read_err != nil {
+		fmt.Println("Error in receiving...")
+		lostclient <- client_conn
+		return
+	}
+	clientdata := buffer[0:byte_received]
+	fmt.Printf("Received data: %s, len=%d\n", clientdata, len(clientdata))
+	//compare the data
+	checklogin, username, message := checklogin(clientdata)
+	if checklogin{
+		fmt.Println("DEBUG> Valid JSON login format and login information. Username = " + username + ". Message: " + message)
+		currentLoggedUser = User{Username: username, Login: true}
+		newclient <- client_conn
+		return
+	} else {
+		fmt.Println("Debug>Invalid JSON login format\n")
+		sendto(client_conn, []byte(message))
+		login(client_conn) //call the function again to let them try again
+	}
 }
 
 func checklogin(data []byte) (bool, string, string){
@@ -222,7 +243,7 @@ func checklogin(data []byte) (bool, string, string){
 	err := json.Unmarshal(data, &account)
 	if err!=nil ||account.Username =="" || account.Password == "" {
 		fmt.Printf("JSON parsing error: %s\n", err)
-		return false, "", '[BAD LOGIN] Expected: {"Username":"...","Password":"..."}'
+		return false, "", "[BAD LOGIN] Expected: {'Username':'...','Password':'...'}"
 	}
 	fmt.Println("DEBUG>Got account=%s\n", account)
 	fmt.Println("DEBUG>Got username=%s\n, password=%s\n", account.Username, account.Password)
@@ -237,6 +258,14 @@ func checklogin(data []byte) (bool, string, string){
 func checkAccount(username string, password string) (bool){
 	
 	if username == "backd1" && password == "test" {
+		fmt.Println("Login access granted!")
+		return true
+	}
+	if username == "user" && password == "test" {
+		fmt.Println("Login access granted!")
+		return true
+	}
+	if username == "user2" && password == "test" {
 		fmt.Println("Login access granted!")
 		return true
 	}
