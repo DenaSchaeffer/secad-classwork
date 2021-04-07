@@ -24,7 +24,7 @@ function connected() {
 	loginsync();
 }
 
-var readlineSync = require('readline-sync');
+var readlineSync = require("readline-sync");
 
 
 var username;
@@ -50,7 +50,7 @@ function loginsync() {
 client.on("data", data => {
 	console.log("Received data: " + data);
 	if (!authenticated){
-		if(username && data.includes("user '"+username+"' logged")) {
+		if(username && data.toString().includes(username)) {
 			console.log("You have logged in successfully witth username " + username);
 			authenticated = true;
 			chat();
