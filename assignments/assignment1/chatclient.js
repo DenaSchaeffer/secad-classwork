@@ -32,7 +32,7 @@ var password;
 function loginsync() {
 	username = readlineSync.question('Username: ');
 	if (!inputValidated(username)) {
-		console.log("Username must have at least five characters. Please try again.");
+		console.log("Username must have at least four characters. Please try again.");
 		loginsync();
 		return;
 	}
@@ -82,13 +82,13 @@ function chat(){
 
 	keyboard.on('line', (input) => {
 		if(input === ".exit") {
-			client.write('{"Command":"exit"}');
+			client.write('{"Action":"exit"}');
 			setTimeout(() =>{
 				client.destroy();
 				console.log("Disconnected!");
 				process.exit();}, 1);
 		}else if(input === ".userlist"){
-			client.write('{"Command":"userlist"}');
+			client.write('{"Action":"userlist"}');
 		}else if(input === ".help"){
 			console.log("Welcome to the Chat System. Below are all options available to authenticated users.");
 			console.log("Type anything to send to public chat.\n");
@@ -110,7 +110,7 @@ function chat(){
 
 function inputValidated(input){
 	//checks to see if the username is longer than five characters
-	if (input && input.length>5 && input.length<1000){ //prevents buffer overflow for input
+	if (input && input.length>3 && input.length<1000){ //prevents buffer overflow for input
 		return true;
 	}
 }

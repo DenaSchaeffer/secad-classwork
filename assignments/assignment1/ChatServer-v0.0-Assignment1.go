@@ -145,18 +145,20 @@ func organizeMessage(client_conn net.Conn, data []byte) {
 			fmt.Printf("Action: ", Action.Action)
 			//note: .help is handled client side
 			switch Action.Action {
-			case "userlist":
-				userlist := getUserlist()
-				sendto(client_conn, userlist)
-			case "exit":
-				//client leaves the application
-				lostclient <- client_conn
-			default:
-				fmt.Printf("DEBUG>>Unknown action.\n")
-				//send error to user
-				sendto(client_conn, []byte("Unknown command."))
-				options := fmt.Sprintf("Must use proper format.")
-				sendto(client_conn, []byte(options))
+				case "userlist":
+					fmt.Printf("Userlist return")
+					userlist := getUserlist() //already a []byte
+					sendto(client_conn, userlist)
+				case "exit":
+					//client leaves the application
+					fmt.Printf("Exit action")
+					lostclient <- client_conn
+				default:
+					fmt.Printf("DEBUG>>Unknown action.\n")
+					//send error to user
+					sendto(client_conn, []byte("Unknown command."))
+					options := fmt.Sprintf("Must use proper format.")
+					sendto(client_conn, []byte(options))
 			}
 		}
 	}
